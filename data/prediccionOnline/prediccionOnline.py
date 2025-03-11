@@ -5,6 +5,7 @@ import json
 import numpy as np
 from pykafka.common import OffsetType
 from collections import namedtuple
+from bson import json_util
 
 ########################################################
 # Carga de modelos y labelEncoder y conexión con Kafka #
@@ -29,11 +30,19 @@ topic = client.topics['simulation']
 ###############################################################
 
 # Obtener el plan de la base de datos mongodb
+db = pymongo.MongoClient("mongodb://localhost:27018/")["simulator"]["plans"]
 def obtenerPlan(evento):
-    print(evento["eventDescription"],evento["eventTime"],evento["eventType"])
+    truck_id, simulation_id = evento["truckId"], evento["simulationId"]
+    vectores[(evento["simulationId"],evento["truckId"])] = json_util.dumps(db.find({"trucks.truck_id": truck_id, "simulationId": simulation_id}))
+    # vectores[(evento["simulationId"],evento["truckId"])] = (evento["eventDescription"],evento["eventTime"],evento["eventType"])
+    # vectores
+    print(vectores[(evento["simulationId"],evento["truckId"])])
 
 def actualizarVectores(evento):
-    return evento
+    valores = {}
+    valores["vector"]=(evento["eventDescription"],evento["eventTime"],evento["eventType"])
+    vectores[(evento["simulationId"],evento["truckId"])] = valores
+    vectores
 
 def prediccionDeTiempoDeViaje(evento):
     return evento
