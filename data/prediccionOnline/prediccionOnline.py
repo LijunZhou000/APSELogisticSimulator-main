@@ -30,19 +30,19 @@ topic = client.topics['simulation']
 
 # Obtener el plan de la base de datos mongodb
 def obtenerPlan(evento):
-    return
+    print(evento["eventDescription"],evento["eventTime"],evento["eventType"])
 
 def actualizarVectores(evento):
-    return
+    return evento
 
 def prediccionDeTiempoDeViaje(evento):
-    return
+    return evento
 
 def prediccionDeTiempoDeEntrega(evento):
-    return
+    return evento
 
 def escribirEnKafka(prediccion):
-    return
+    return prediccion
 
 ###########################################################
 # Bucle principal: consumir mensajes y hacer predicciones #
