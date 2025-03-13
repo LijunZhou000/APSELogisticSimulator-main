@@ -6,6 +6,7 @@ import numpy as np
 from pykafka.common import OffsetType
 from collections import namedtuple
 from bson import json_util
+import pandas as pd
 
 ########################################################
 # Carga de modelos y labelEncoder y conexión con Kafka #
@@ -18,6 +19,12 @@ with open('data/prediccionOnline/deliveryModel.pkl', 'rb') as f:
     modelo_tiempo_entrega = pickle.load(f)
 with open('data/prediccionOnline/le.pkl', 'rb') as f:
     labelEncoder = pickle.load(f)
+with open('../../randomforest.pkl', 'rb') as f:
+    rf = pickle.load(f)
+with open('../../encoderMatriculas.pkl', 'rb') as f:
+    eM = pickle.load(f)
+with open('../../encoderLugar.pkl', 'rb') as f:
+    eL = pickle.load(f)
 
 vectores = {}
 
@@ -30,10 +37,21 @@ topic = client.topics['simulation']
 ###############################################################
 
 # Obtener el plan de la base de datos mongodb
-db = pymongo.MongoClient("mongodb://localhost:27018/")["simulator"]["plans"]
 def obtenerPlan(evento):
+    cliente = pymongo.MongoClient("mongodb://localhost:27018/")
+    db = cliente["simulator"]["plans"]
     truck_id, simulation_id = evento["truckId"], evento["simulationId"]
-    vectores[(evento["simulationId"],evento["truckId"])] = json_util.dumps(db.find({"trucks.truck_id": truck_id, "simulationId": simulation_id}))
+    def preprocesadoplanes(planes):
+        print(pd.read_json(planes))
+        planes = pd.read_json(planes)
+        planes = planes.join(planes.trucks.explode().apply(pd.Series), lsuffix='_sim').reset_index(drop=True)
+        planes = planes.join(planes.route.explode().apply(pd.Series), lsuffix='_sim').reset_index(drop=True)
+        planes["nItems"] = planes["items"].apply(lambda x: len(x))
+        planes["nParadas"] = planes["route"].apply(lambda x: len(x))
+        return planes
+    vectores[(evento["simulationId"],evento["truckId"])] = preprocesadoplanes(json_util.dumps(db.find({"trucks.truck_id": truck_id, "simulationId": simulation_id})))
+    
+    cliente.close()
     # vectores[(evento["simulationId"],evento["truckId"])] = (evento["eventDescription"],evento["eventTime"],evento["eventType"])
     # vectores
     print(vectores[(evento["simulationId"],evento["truckId"])])
@@ -42,7 +60,6 @@ def actualizarVectores(evento):
     valores = {}
     valores["vector"]=(evento["eventDescription"],evento["eventTime"],evento["eventType"])
     vectores[(evento["simulationId"],evento["truckId"])] = valores
-    vectores
 
 def prediccionDeTiempoDeViaje(evento):
     return evento
